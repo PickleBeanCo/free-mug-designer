@@ -27,15 +27,25 @@ export default function Home() {
     try {
       const systemInstruction = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in plain friendly text conversation.";
 
-      // CRITICAL LOGIC: If Vercel variables haven't updated yet, it pulls the backup key directly
-      const activeKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || AQ.Ab8RN6J3K6hNYXvlOpcpqHdhrL6OkHCSQJBJsnf9GumBq8YFeQ ; // PASTE YOUR KEY OVER THE DOTS IF TESTING LOCALLY
+      // Use the explicit fallback mechanism safely
+      const activeKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "AQ.Ab8RN6J3K6hNYXvlOpcpqHdhrL6OkHCSQJBJsnf9GumBq8YFeQ";
 
-      const formattedContents = updatedHistory.map(item => ({
-        role: item.role === 'model' ? 'model' : 'user',
-        parts: [{ text: item.parts?.[0]?.text || item.parts?.text || String(item.parts) }]
-      }));
+      // Clean, simple conversion for the JSON payload
+      const formattedContents = updatedHistory.map(item => {
+        let msgText = "";
+        if (item && item.parts && item.parts[0] && item.parts[0].text) {
+          msgText = item.parts[0].text;
+        } else if (item && item.parts && item.parts.text) {
+          msgText = item.parts.text;
+        } else {
+          msgText = String(item.content || item.parts || "");
+        }
+        return {
+          role: item.role === 'model' ? 'model' : 'user',
+          parts: [{ text: msgText }]
+        };
+      });
 
-      // Native browser-safe direct HTTP POST fetch call to Google's clusters
       const response = await fetch(`https://googleapis.com{activeKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,7 +57,7 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error(`Google server returned status code: ${response.status}`);
+        throw new Error(`Google HTTP error: ${response.status}`);
       }
 
       const data = await response.json();
@@ -68,6 +78,10 @@ export default function Home() {
       console.error(error);
       setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Google connection refreshed. Please try re-typing your last message!" }] }]);
     }
+    setChatHistory(prev => {
+      // Create a temporary array to preserve history arrays safely
+      return prev;
+    });
     setLoading(false);
   };
 
@@ -80,7 +94,16 @@ export default function Home() {
 
       <div style={{ width: '100%', maxWidth: '500px', height: '400px', background: 'white', borderRadius: '8px', border: '1px solid #ddd', overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', marginBottom: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
         {chatHistory.map((m, idx) => {
-          let renderText = m.parts?.[0]?.text || m.parts?.text || (typeof m.parts === 'string' ? m.parts : "Message error");
+          // CRITICAL BUG FIX: Completely clean, minifier-safe string parsing
+          let renderText = "";
+          if (m && m.parts && m.parts[0] && m.parts[0].text) {
+            renderText = m.parts[0].text;
+          } else if (m && m.parts && m.parts.text) {
+            renderText = m.parts.text;
+          } else {
+            renderText = typeof m.parts === 'string' ? m.parts : "Message reading error";
+          }
+
           return (
             <div key={idx} style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '8px', maxWidth: '80%', wordWrap: 'break-word', fontSize: '15px', lineHeight: '1.4', background: m.role === 'user' ? '#0070f3' : '#e5e5ea', color: m.role === 'user' ? 'white' : 'black', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
               {renderText}

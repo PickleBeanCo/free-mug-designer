@@ -18,19 +18,20 @@
         #result-container { display: none; flex-direction: column; align-items: center; margin-top: 20px; width: 100%; }
         #result-image { width: 100%; border-radius: 8px; border: 2px solid #ddd; }
         #download-btn { margin-top: 10px; padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; text-decoration: none; }
-        .btn-logout { margin-top: 20px; background: #ef4444; padding: 5px 10px; font-size: 12px; }
+        .btn-auth { padding: 12px 24px; background: #0070f3; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; font-size: 14px; }
+        .btn-logout { margin-top: 20px; background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <!-- 1. AUTHENTICATION SCREEN PANEL -->
+    <!-- 1. AUTHENTICATION LOCK SCREEN -->
     <div id="auth-container">
         <h2>🔒 Private Access Required</h2>
-        <p style="color: #666; text-align: center;">Please sign in. New accounts must be manually approved by the administrator.</p>
-        <div id="clerk-login-button"></div>
+        <p style="color: #666; text-align: center; max-width: 300px; margin: 10px 0;">Please sign in to proceed. New registrations will automatically enter the manual approval waitlist.</p>
+        <button class="btn-auth" onclick="redirectToLogin()">Sign In / Register</button>
     </div>
 
-    <!-- 2. PROTECTED MUG APP PANEL (Hidden until logged in) -->
+    <!-- 2. PROTECTED MUG BOT CONTAINER -->
     <div id="app-container">
         <h2>☕ AI Mug Design Assistant</h2>
         <div id="chat-window">
@@ -44,26 +45,37 @@
             <img id="result-image" alt="Your Custom Mug Design">
             <a id="download-btn" download="mug-design.jpg" target="_blank">Download Print File</a>
         </div>
-        <button class="btn-logout" onclick="Clerk.signOut()">Sign Out</button>
+        <button class="btn-logout" onclick="handleSignOut()">Sign Out</button>
     </div>
 
-    <!-- Load Clerk Authentication System SDK -->
+    <!-- Inject Clerk Core Web SDK Engine -->
     <script async crossorigin="anonymous" data-clerk-publishable-key="YOUR_CLERK_PUBLISHABLE_KEY_HERE" src="https://clerk.com" type="text/javascript"></script>
 
     <script>
         window.addEventListener('load', async function () {
-            // Wait for the login engine to boot up
+            // Confirm the authentication engines have initialized
             await Clerk.load();
 
             if (Clerk.user) {
-                // User is signed in! Check if they have an active status
+                // Verified user detected: unmask app workspace 
                 document.getElementById('auth-container').style.display = 'none';
                 document.getElementById('app-container').style.display = 'flex';
             } else {
-                // User is not signed in, show the login buttons
-                Clerk.mountSignIn(document.getElementById('clerk-login-button'));
+                // Public state: keep lock view active
+                document.getElementById('auth-container').style.display = 'flex';
+                document.getElementById('app-container').style.display = 'none';
             }
         });
+
+        function redirectToLogin() {
+            // Bypasses local wrapper rendering and fires directly into Clerk's secure domain portal
+            Clerk.redirectToSignIn();
+        }
+
+        async function handleSignOut() {
+            await Clerk.signOut();
+            window.location.reload();
+        }
 
         let chatHistory = [
             { role: "system", content: "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles." },
@@ -71,7 +83,6 @@
         ];
 
         async function sendMessage() {
-            // Guard clause to make sure non-logged in users can't try hacking the script buttons
             if (!Clerk.user) return alert("Access Denied");
 
             const inputEl = document.getElementById('user-input');

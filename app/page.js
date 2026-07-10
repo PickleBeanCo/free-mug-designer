@@ -8,7 +8,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [chatHistory, setChatHistory] = useState([
-    { role: "assistant", content: "Hello! I'm your custom mug designer. Do you want a 'Full Wrap' design that covers the whole mug, or a 'Single Graphic' on just one side?" }
+    { role: "assistant", content: "Hello! I'm your custom mug designer!. Do you want a 'Full Wrap' design that covers the whole mug, or a 'Single Graphic' on just one side?" }
   ]);
 
   useEffect(() => {

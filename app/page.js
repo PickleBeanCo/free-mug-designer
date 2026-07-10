@@ -33,8 +33,13 @@ export default function Home() {
 
       const data = await response.json();
       
-      if (data.error) throw new Error(data.error);
-      const replyText = data.reply;
+      if (data.error) {
+        setChatHistory(prev => [...prev, { role: "model", parts: [{ text: `Error: ${data.error}` }] }]);
+        setLoading(false);
+        return;
+      }
+      
+      const replyText = data.reply || "";
 
       if (replyText.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Perfect! Drawing your print image now... please wait a few seconds." }] }]);
@@ -49,7 +54,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "The connection refreshed. Please try re-typing your last message!" }] }]);
+      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "The connection dropped. Please try re-typing your message response." }] }]);
     }
     setLoading(false);
   };

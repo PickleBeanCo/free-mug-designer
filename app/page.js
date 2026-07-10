@@ -20,31 +20,29 @@ export default function Home() {
     const userText = input.trim();
     setInput('');
     
-    // Log user input to state instantly
+    // Unpack user inputs to UI array
     const updatedHistory = [...chatHistory, { role: "user", content: userText }];
     setChatHistory(updatedHistory);
     setLoading(true);
 
     try {
-      // 1. Build a clean text-based conversation string block
-      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Never wrap responses in code blocks, markdown blocks, or JSON variables.";
+      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Important: Return only short, normal, friendly conversational text. Do not return JSON blocks or code formatting wrappers.";
       
       const conversationLog = updatedHistory.map(m => `${m.role === 'user' ? 'Customer' : 'Designer'}: ${m.content}`).join('\n');
       const finalPromptBlock = `${systemContext}\n\nHere is the ongoing chat history so far:\n${conversationLog}\n\nDesigner response:`;
 
-      // 2. Fetch using a clean browser-safe GET request to bypass POST firewall resets completely
-      const cleanUrl = `https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=searchgpt&cache=false`;
+      // CRITICAL FIX: Shifting the query route parameter to use the lightweight, fast 'mistral' model channel
+      const cleanUrl = `https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=mistral`;
       const response = await fetch(cleanUrl);
       
-      if (!response.ok) throw new Error("API Route Blocked");
+      if (!response.ok) throw new Error("API Route Traffic Congestion");
       const reply = await response.text();
 
-      // 3. Process the AI response string
       if (reply.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "assistant", content: "Perfect! Drawing your print image now... please wait a few seconds." }]);
         const promptText = reply.replace(/generate/i, '').trim();
         const isWrap = promptText.toLowerCase().includes('wrap');
-        const cleanPrompt = encodeURIComponent(`${promptText}, clean vector print asset for custom coffee mug, sharp text centering typography, solid plain white background, crisp edges`);
+        const cleanPrompt = encodeURIComponent(`${promptText}, clean vector print asset for custom coffee mug, text typography centered, solid plain white background, sharp edges`);
         
         const generatedUrl = `https://pollinations.ai{cleanPrompt}?width=${isWrap ? 1200 : 1000}&height=${isWrap ? 600 : 1000}&seed=${Math.floor(Math.random() * 100000)}&nologo=true`;
         setImageUrl(generatedUrl);
@@ -53,7 +51,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "assistant", content: "The server is a bit busy. Please try typing your last reply again!" }]);
+      setChatHistory(prev => [...prev, { role: "assistant", content: "The network cluster is resetting. Let's send that last prompt line through again!" }]);
     }
     setLoading(false);
   };

@@ -15,11 +15,20 @@ export default function Home() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
-    const userText = input.trim();
-    setInput('');
+  const triggerInputSubmit = () => {
+    if (loading) return;
+    const textNode = document.getElementById('mug-designer-input-field');
+    const val = textNode ? textNode.value.trim() : '';
+    if (!val) return;
     
+    executeChatWorkflow(val);
+  };
+
+  const executeChatWorkflow = async (userText) => {
+    setInput('');
+    const inputField = document.getElementById('mug-designer-input-field');
+    if (inputField) inputField.value = '';
+
     const updatedHistory = [...chatHistory, { role: "user", parts: [{ text: userText }] }];
     setChatHistory(updatedHistory);
     setLoading(true);
@@ -27,14 +36,13 @@ export default function Home() {
     try {
       const systemInstruction = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in plain friendly text conversation.";
 
-      // Use the explicit fallback mechanism safely
-      const activeKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || AQ.Ab8RN6J3K6hNYXvlOpcpqHdhrL6OkHCSQJBJsnf9GumBq8YFeQ;
+      // Injected your active string key token directly into the client variable mapping
+      const tokenKey = "AQ.Ab8RN6Lb1VCsCv-rfZU0SlTdvrG9s68eRQBNmlIQJi_EAHxCZg";
 
-      // Clean, simple conversion for the JSON payload
       const formattedContents = updatedHistory.map(item => {
         let msgText = "";
-        if (item && item.parts && item.parts[0] && item.parts[0].text) {
-          msgText = item.parts[0].text;
+        if (item && item.parts && Array.isArray(item.parts) && item.parts[0]) {
+          msgText = item.parts[0].text || "";
         } else if (item && item.parts && item.parts.text) {
           msgText = item.parts.text;
         } else {
@@ -46,7 +54,7 @@ export default function Home() {
         };
       });
 
-      const response = await fetch(`https://googleapis.com{activeKey}`, {
+      const response = await fetch(`https://googleapis.com{tokenKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -56,9 +64,7 @@ export default function Home() {
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Google HTTP error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Google API error code: ${response.status}`);
 
       const data = await response.json();
       const replyText = data.candidates[0].content.parts[0].text;
@@ -78,10 +84,6 @@ export default function Home() {
       console.error(error);
       setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Google connection refreshed. Please try re-typing your last message!" }] }]);
     }
-    setChatHistory(prev => {
-      // Create a temporary array to preserve history arrays safely
-      return prev;
-    });
     setLoading(false);
   };
 
@@ -94,14 +96,13 @@ export default function Home() {
 
       <div style={{ width: '100%', maxWidth: '500px', height: '400px', background: 'white', borderRadius: '8px', border: '1px solid #ddd', overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', marginBottom: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
         {chatHistory.map((m, idx) => {
-          // CRITICAL BUG FIX: Completely clean, minifier-safe string parsing
           let renderText = "";
-          if (m && m.parts && m.parts[0] && m.parts[0].text) {
-            renderText = m.parts[0].text;
+          if (m && m.parts && Array.isArray(m.parts) && m.parts[0]) {
+            renderText = m.parts[0].text || "";
           } else if (m && m.parts && m.parts.text) {
             renderText = m.parts.text;
           } else {
-            renderText = typeof m.parts === 'string' ? m.parts : "Message reading error";
+            renderText = typeof m.parts === 'string' ? m.parts : "Message loading...";
           }
 
           return (
@@ -114,8 +115,22 @@ export default function Home() {
       </div>
 
       <div style={{ display: 'flex', width: '100%', maxWidth: '500px' }}>
-        <input style={{ flex: 1, padding: '12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '15px' }} type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} placeholder={loading ? "AI is typing..." : "Type your answer here..."} disabled={loading} />
-        <button style={{ padding: '12px 24px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '6px', marginLeft: '5px', cursor: 'pointer', fontWeight: 'bold' }} onClick={sendMessage} disabled={loading}>Send</button>
+        <input 
+          id="mug-designer-input-field"
+          style={{ flex: 1, padding: '12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '15px' }} 
+          type="text" 
+          defaultValue=""
+          onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); triggerInputSubmit(); } }} 
+          placeholder={loading ? "AI is typing..." : "Type your answer here..."} 
+          disabled={loading} 
+        />
+        <button 
+          style={{ padding: '12px 24px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '6px', marginLeft: '5px', cursor: 'pointer', fontWeight: 'bold' }} 
+          onClick={triggerInputSubmit} 
+          disabled={loading}
+        >
+          Send
+        </button>
       </div>
 
       {imageUrl && (

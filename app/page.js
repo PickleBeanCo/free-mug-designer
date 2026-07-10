@@ -20,49 +20,35 @@ export default function Home() {
     const userText = input.trim();
     setInput('');
     
+    // Log user response into states
     const updatedHistory = [...chatHistory, { role: "user", content: userText }];
     setChatHistory(updatedHistory);
     setLoading(true);
 
     try {
-      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Important: Return only normal plain text conversation. Do not return JSON formatting, tool calls, or hidden code variables.";
+      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Important: Speak only in normal, friendly conversational text. Never wrap responses in code blocks, JSON formatting tables, or system arrays.";
       
       const formattedMessages = [
         { role: "system", content: systemContext },
         ...updatedHistory
       ];
 
-      // Force the endpoint to return standard JSON so we can extract fields safely
-      const response = await fetch('https://pollinations.ai', {
+      // Route through the stable qwen-coder engine cluster to prevent dropped connections
+      const response = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: formattedMessages,
-          model: "openai",
-          jsonMode: true // Forces clean structured delivery
+          model: "qwen-coder" // Stable, un-throttled routing line 
         })
       });
       
-      if (!response.ok) throw new Error("API Route Blocked");
+      if (!response.ok) throw new Error("API Connection Interrupted");
       
-      const rawData = await response.text();
-      let reply = "";
+      // Extract the raw text stream response cleanly
+      const reply = await response.text();
 
-      try {
-        // Parse the text block to find the clean chat content
-        const parsed = JSON.parse(rawData);
-        if (parsed.choices && parsed.choices[0] && parsed.choices[0].message) {
-          reply = parsed.choices[0].message.content;
-        } else if (parsed.content) {
-          reply = parsed.content;
-        } else {
-          reply = rawData;
-        }
-      } catch (e) {
-        reply = rawData;
-      }
-
-      // Check for custom layout trigger word mechanisms
+      // Check if the AI generated the layout completion token
       if (reply.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "assistant", content: "Perfect! Drawing your print image now... please wait a few seconds." }]);
         const promptText = reply.replace(/generate/i, '').trim();
@@ -76,7 +62,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection lagged. Please try re-typing your message response." }]);
+      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection reset by server. Let's try sending that message again!" }]);
     }
     setLoading(false);
   };

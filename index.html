@@ -6,7 +6,7 @@
     <title>Private AI Mug Designer</title>
     <style>
         body { font-family: sans-serif; background: #f4f4f9; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        #auth-container { display: flex; flex-direction: column; align-items: center; margin-top: 50px; background: white; padding: 30px; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        #auth-container { display: none; flex-direction: column; align-items: center; margin-top: 50px; background: white; padding: 30px; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         #app-container { display: none; width: 100%; max-width: 500px; flex-direction: column; align-items: center; }
         #chat-window { width: 100%; background: white; height: 400px; border-radius: 8px; border: 1px solid #ddd; overflow-y: auto; padding: 15px; margin-bottom: 10px; display: flex; flex-direction: column; }
         .msg { margin: 8px 0; padding: 8px 12px; border-radius: 6px; max-width: 80%; word-wrap: break-word; }
@@ -20,11 +20,15 @@
         #download-btn { margin-top: 10px; padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; text-decoration: none; }
         .btn-logout { margin-top: 20px; background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; }
         #clerk-login-box { margin-top: 20px; min-height: 400px; width: 100%; display: flex; justify-content: center; }
+        #loading-screen { font-size: 18px; color: #666; margin-top: 100px; }
     </style>
 </head>
 <body>
 
-    <!-- 1. AUTHENTICATION LOCK SCREEN (Clerk Form Draws Right Inside This) -->
+    <!-- 0. BOOTSTRAP INITIAL SYSTEM LOADING TEXT -->
+    <div id="loading-screen">Waking up secure network servers...</div>
+
+    <!-- 1. AUTHENTICATION LOCK SCREEN -->
     <div id="auth-container">
         <h2>🔒 Private Access Required</h2>
         <p style="color: #666; text-align: center; max-width: 340px; margin: 10px 0;">New registrations will automatically enter your manual approval waitlist.</p>
@@ -48,28 +52,37 @@
         <button class="btn-logout" onclick="handleSignOut()">Sign Out</button>
     </div>
 
-    <!-- Inject Clerk Core Web SDK Engine with your unique key embedded -->
-    <script async crossorigin="anonymous" data-clerk-publishable-key="pk_test_Zm9uZC1sYWNld2luZy01NS5jbGVyay5hY2NvdW50cy5kZXYk" src="https://clerk.com" type="text/javascript"></script>
-
     <script>
-        window.addEventListener('load', async function () {
-            // Confirm the authentication engines have initialized
-            await Clerk.load();
+        // Official 2026 Native Javascript Initialization Pattern for Single File Environments
+        const clerkPublishableKey = "pk_test_Zm9uZC1sYWNld2luZy01NS5jbGVyay5hY2NvdW50cy5kZXYk";
 
-            if (Clerk.user) {
-                // Verified user detected: unmask app workspace 
-                document.getElementById('auth-container').style.display = 'none';
+        // Dynamically build script element inside DOM map to prevent asynchronous blockades
+        const script = document.createElement('script');
+        script.setAttribute('data-clerk-publishable-key', clerkPublishableKey);
+        script.src = 'https://clerk.com';
+        script.crossOrigin = 'anonymous';
+        
+        script.addEventListener('load', async () => {
+            // Once the external script finishes streaming, load Clerk engine explicitly
+            await window.Clerk.load();
+            
+            // Remove initial boot text
+            document.getElementById('loading-screen').style.display = 'none';
+
+            if (window.Clerk.user) {
+                // User is authenticated
                 document.getElementById('app-container').style.display = 'flex';
             } else {
-                // Public state: Force Clerk to build the login form directly on the screen
+                // Public user: Draw the login form natively on the blank card space
                 document.getElementById('auth-container').style.display = 'flex';
-                document.getElementById('app-container').style.display = 'none';
-                Clerk.mountSignIn(document.getElementById('clerk-login-box'));
+                window.Clerk.mountSignIn(document.getElementById('clerk-login-box'));
             }
         });
 
+        document.body.appendChild(script);
+
         async function handleSignOut() {
-            await Clerk.signOut();
+            await window.Clerk.signOut();
             window.location.reload();
         }
 
@@ -79,7 +92,7 @@
         ];
 
         async function sendMessage() {
-            if (!Clerk.user) return alert("Access Denied");
+            if (!window.Clerk.user) return alert("Access Denied");
 
             const inputEl = document.getElementById('user-input');
             const chatWin = document.getElementById('chat-window');

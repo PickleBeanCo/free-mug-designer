@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^5.0.0",
-    "@google/genai": "latest",
     "next": "^14.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"

@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { UserButton } from '@clerk/nextjs';
-import { GoogleGenAI } from '@google/generative-ai';
 
 export default function Home() {
   const chatEndRef = useRef(null);
@@ -21,38 +20,23 @@ export default function Home() {
     const userText = input.trim();
     setInput('');
     
-    // Add user message to history
     const updatedHistory = [...chatHistory, { role: "user", parts: [{ text: userText }] }];
     setChatHistory(updatedHistory);
     setLoading(true);
 
     try {
-      // 1. Correct Initialization for Google Gen AI SDK
-      const ai = new GoogleGenAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-      const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-      const systemInstruction = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in plain friendly text conversation.";
-
-      // 2. Prepare past history formatting for Gemini (excluding the newest user message)
-      const pastHistory = chatHistory.map(item => ({
-        role: item.role,
-        parts: item.parts
-      }));
-
-      // 3. Start a clean chat session on Google's network
-      const chat = model.startChat({
-        history: pastHistory,
-        generationConfig: {
-          temperature: 0.7,
-        }
+      // Talk directly to our secure internal Next.js server route
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history: chatHistory, message: userText })
       });
 
-      // Inject system context into the message stream safely
-      const finalPromptText = `[System Instructions: ${systemInstruction}]\n\nUser Message: ${userText}`;
-      const responseResult = await chat.sendMessage(finalPromptText);
-      const replyText = responseResult.response.text();
+      const data = await response.json();
+      
+      if (data.error) throw new Error(data.error);
+      const replyText = data.reply;
 
-      // 4. Handle text analysis and trigger image generation
       if (replyText.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Perfect! Drawing your print image now... please wait a few seconds." }] }]);
         const promptText = replyText.replace(/generate/i, '').trim();
@@ -65,8 +49,8 @@ export default function Home() {
         setChatHistory(prev => [...prev, { role: "model", parts: [{ text: replyText.trim() }] }]);
       }
     } catch (error) {
-      console.error("Gemini SDK Error details:", error);
-      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Google connection refreshed. Please try typing your last message response again!" }] }]);
+      console.error(error);
+      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "The network refreshed. Please try re-typing your last message!" }] }]);
     }
     setLoading(false);
   };
@@ -88,7 +72,7 @@ export default function Home() {
       </div>
 
       <div style={{ display: 'flex', width: '100%', maxWidth: '500px' }}>
-        <input style={{ flex: 1, padding: '12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '15px' }} type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} placeholder={loading ? "Gemini is typing..." : "Type your answer here..."} disabled={loading} />
+        <input style={{ flex: 1, padding: '12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '15px' }} type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} placeholder={loading ? "AI is typing..." : "Type your answer here..."} disabled={loading} />
         <button style={{ padding: '12px 24px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '6px', marginLeft: '5px', cursor: 'pointer', fontWeight: 'bold' }} onClick={sendMessage} disabled={loading}>Send</button>
       </div>
 

@@ -26,16 +26,25 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // Build a clean descriptive context prompt string out of the running chat history
-      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles.\n\nConversation log:\n";
-      const runningLog = updatedHistory.map(m => `${m.role === 'user' ? 'Customer' : 'Designer'}: ${m.content}`).join('\n') + "\nDesigner:";
+      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles.";
       
-      const fullPayloadPrompt = encodeURIComponent(systemContext + runningLog);
+      // Correctly format history items for JSON delivery payloads
+      const formattedMessages = [
+        { role: "system", content: systemContext },
+        ...updatedHistory
+      ];
 
-      // Connect to the free browser-safe text endpoint directly
-      const response = await fetch(`https://pollinations.ai{fullPayloadPrompt}?model=openai`);
+      // Use a strict JSON POST payload to bypass URL length barriers entirely
+      const response = await fetch('https://text.pollinations.ai/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          messages: formattedMessages,
+          model: "openai"
+        })
+      });
       
-      if (!response.ok) throw new Error("Server dropped packet connection");
+      if (!response.ok) throw new Error("API Route Blocked");
       const reply = await response.text();
 
       if (reply.toUpperCase().includes('GENERATE')) {

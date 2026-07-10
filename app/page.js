@@ -20,7 +20,6 @@ export default function Home() {
     const userText = input.trim();
     setInput('');
     
-    // Log user input to state layout instantly
     const updatedHistory = [...chatHistory, { role: "user", parts: [{ text: userText }] }];
     setChatHistory(updatedHistory);
     setLoading(true);
@@ -28,14 +27,16 @@ export default function Home() {
     try {
       const systemInstruction = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in plain friendly text conversation.";
 
-      // Convert layout elements to match the direct raw JSON object arrays Google expects
+      // CRITICAL LOGIC: If Vercel variables haven't updated yet, it pulls the backup key directly
+      const activeKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "AIzaSy..." ; // PASTE YOUR KEY OVER THE DOTS IF TESTING LOCALLY
+
       const formattedContents = updatedHistory.map(item => ({
         role: item.role === 'model' ? 'model' : 'user',
         parts: [{ text: item.parts?.[0]?.text || item.parts?.text || String(item.parts) }]
       }));
 
-      // Call Google's direct native HTTP endpoint straight from the browser
-      const response = await fetch(`https://googleapis.com{process.env.NEXT_PUBLIC_GEMINI_API_KEY}`, {
+      // Native browser-safe direct HTTP POST fetch call to Google's clusters
+      const response = await fetch(`https://googleapis.com{activeKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -46,13 +47,12 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error("Google connection handshake dropped.");
+        throw new Error(`Google server returned status code: ${response.status}`);
       }
 
       const data = await response.json();
       const replyText = data.candidates[0].content.parts[0].text;
 
-      // Check if image triggers are generated
       if (replyText.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Perfect! Drawing your print image now... please wait a few seconds." }] }]);
         const promptText = replyText.replace(/generate/i, '').trim();
@@ -66,7 +66,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Google cluster lag. Let's send that response prompt line through again!" }] }]);
+      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Google connection refreshed. Please try re-typing your last message!" }] }]);
     }
     setLoading(false);
   };

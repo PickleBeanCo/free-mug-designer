@@ -20,13 +20,11 @@ export default function Home() {
     const userText = input.trim();
     setInput('');
     
-    // 1. Instantly log user message with the precise array format matching our mapping loop
     const updatedHistory = [...chatHistory, { role: "user", parts: [{ text: userText }] }];
     setChatHistory(updatedHistory);
     setLoading(true);
 
     try {
-      // 2. Pass history array down to our internal Next.js secure server API
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -38,7 +36,6 @@ export default function Home() {
       if (data.error) throw new Error(data.error);
       const replyText = data.reply;
 
-      // 3. Handle image generation triggers
       if (replyText.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Perfect! Drawing your print image now... please wait a few seconds." }] }]);
         const promptText = replyText.replace(/generate/i, '').trim();
@@ -66,10 +63,9 @@ export default function Home() {
 
       <div style={{ width: '100%', maxWidth: '500px', height: '400px', background: 'white', borderRadius: '8px', border: '1px solid #ddd', overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', marginBottom: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
         {chatHistory.map((m, idx) => {
-          // Robust text parsing fallback logic to prevent background crashing
           let renderText = "";
-          if (m.parts && m.parts[0] && m.parts[0].text) {
-            renderText = m.parts[0].text;
+          if (m.parts && Array.isArray(m.parts) && m.parts[0]) {
+            renderText = m.parts[0].text || "";
           } else if (m.parts && m.parts.text) {
             renderText = m.parts.text;
           } else {

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { UserButton } from '@clerk/nextjs';
 
-export default function MugDesignerPage() {
+export default function Home() {
   const chatEndRef = useRef(null);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function MugDesignerPage() {
 
   const triggerInputSubmit = () => {
     if (loading) return;
-    const textNode = document.getElementById('clean-mug-input-box');
+    const textNode = document.getElementById('final-mug-input-box');
     const val = textNode ? textNode.value.trim() : '';
     if (!val) return;
     
@@ -26,7 +26,7 @@ export default function MugDesignerPage() {
 
   const executeChatWorkflow = async (userText) => {
     setInput('');
-    const inputField = document.getElementById('clean-mug-input-box');
+    const inputField = document.getElementById('final-mug-input-box');
     if (inputField) inputField.value = '';
 
     const updatedHistory = [...chatHistory, { role: "user", content: userText }];
@@ -39,9 +39,12 @@ export default function MugDesignerPage() {
       const conversationLog = updatedHistory.map(m => `${m.role === 'user' ? 'Customer' : 'Designer'}: ${m.content}`).join('\n');
       const finalPromptBlock = `${systemContext}\n\nHere is the ongoing chat history so far:\n${conversationLog}\n\nDesigner response:`;
 
-      const response = await fetch(`https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=mistral`);
+      // Cache-Busting Fix: Appending a random seed number forces the browser to discard cached addresses
+      const randomCacheBuster = Math.floor(Math.random() * 999999);
+      const secureCleanUrl = `https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=mistral&cb=${randomCacheBuster}`;
       
-      if (!response.ok) throw new Error("Network connection dropped");
+      const response = await fetch(secureCleanUrl);
+      if (!response.ok) throw new Error("Connection Interrupted");
       const reply = await response.text();
 
       if (reply.toUpperCase().includes('GENERATE')) {
@@ -57,7 +60,7 @@ export default function MugDesignerPage() {
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection timed out. Let's send that message again!" }]);
+      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection lagged. Please try typing your last message response again!" }]);
     }
     setLoading(false);
   };
@@ -80,7 +83,7 @@ export default function MugDesignerPage() {
 
       <div style={{ display: 'flex', width: '100%', maxWidth: '500px' }}>
         <input 
-          id="clean-mug-input-box"
+          id="final-mug-input-box"
           style={{ flex: 1, padding: '12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '15px' }} 
           type="text" 
           defaultValue=""

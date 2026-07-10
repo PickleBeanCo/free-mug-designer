@@ -8,7 +8,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [chatHistory, setChatHistory] = useState([
-    { role: "model", parts: [{ text: "Hello! I'm your custom mug designer. Do you want a 'Full Wrap' design that covers the whole mug, or a 'Single Graphic' on just one side?" }] }
+    { role: "assistant", content: "Hello! I'm your custom mug designer. Do you want a 'Full Wrap' design that covers the whole mug, or a 'Single Graphic' on just one side?" }
   ]);
 
   useEffect(() => {
@@ -29,60 +29,38 @@ export default function Home() {
     const inputField = document.getElementById('mug-designer-input-field');
     if (inputField) inputField.value = '';
 
-    const updatedHistory = [...chatHistory, { role: "user", parts: [{ text: userText }] }];
+    const updatedHistory = [...chatHistory, { role: "user", content: userText }];
     setChatHistory(updatedHistory);
     setLoading(true);
 
     try {
-      const systemInstruction = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in plain friendly text conversation.";
+      // 1. Build a clean conversational prompt log for the open-source endpoint
+      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Important: Speak only in normal, friendly conversational text. Do not return code structures or system blocks.";
+      
+      const conversationLog = updatedHistory.map(m => `${m.role === 'user' ? 'Customer' : 'Designer'}: ${m.content}`).join('\n');
+      const finalPromptBlock = `${systemContext}\n\nHere is the ongoing chat history so far:\n${conversationLog}\n\nDesigner response:`;
 
-      // Injected your active string key token directly into the client variable mapping
-      const tokenKey = "AQ.Ab8RN6Lb1VCsCv-rfZU0SlTdvrG9s68eRQBNmlIQJi_EAHxCZg";
+      // 2. Fetch using a completely free, tokenless router to bypass Google domain typos entirely
+      const response = await fetch(`https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=mistral`);
+      
+      if (!response.ok) throw new Error("API Connection Interrupted");
+      const reply = await response.text();
 
-      const formattedContents = updatedHistory.map(item => {
-        let msgText = "";
-        if (item && item.parts && Array.isArray(item.parts) && item.parts[0]) {
-          msgText = item.parts[0].text || "";
-        } else if (item && item.parts && item.parts.text) {
-          msgText = item.parts.text;
-        } else {
-          msgText = String(item.content || item.parts || "");
-        }
-        return {
-          role: item.role === 'model' ? 'model' : 'user',
-          parts: [{ text: msgText }]
-        };
-      });
-
-      const response = await fetch(`https://googleapis.com{tokenKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: formattedContents,
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          generationConfig: { temperature: 0.7 }
-        })
-      });
-
-      if (!response.ok) throw new Error(`Google API error code: ${response.status}`);
-
-      const data = await response.json();
-      const replyText = data.candidates[0].content.parts[0].text;
-
-      if (replyText.toUpperCase().includes('GENERATE')) {
-        setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Perfect! Drawing your print image now... please wait a few seconds." }] }]);
-        const promptText = replyText.replace(/generate/i, '').trim();
+      // 3. Process the AI reply and handle image generations
+      if (reply.toUpperCase().includes('GENERATE')) {
+        setChatHistory(prev => [...prev, { role: "assistant", content: "Perfect! Drawing your print image now... please wait a few seconds." }]);
+        const promptText = reply.replace(/generate/i, '').trim();
         const isWrap = promptText.toLowerCase().includes('wrap');
         const cleanPrompt = encodeURIComponent(`${promptText}, clean vector print asset for custom coffee mug, text typography centered, solid plain white background, sharp edges`);
         
         const generatedUrl = `https://pollinations.ai{cleanPrompt}?width=${isWrap ? 1200 : 1000}&height=${isWrap ? 600 : 1000}&seed=${Math.floor(Math.random() * 100000)}&nologo=true`;
         setImageUrl(generatedUrl);
       } else {
-        setChatHistory(prev => [...prev, { role: "model", parts: [{ text: replyText.trim() }] }]);
+        setChatHistory(prev => [...prev, { role: "assistant", content: reply.trim() }]);
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Google connection refreshed. Please try re-typing your last message!" }] }]);
+      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection lagged slightly. Please try typing your last message response again!" }]);
     }
     setLoading(false);
   };
@@ -95,22 +73,11 @@ export default function Home() {
       </div>
 
       <div style={{ width: '100%', maxWidth: '500px', height: '400px', background: 'white', borderRadius: '8px', border: '1px solid #ddd', overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', marginBottom: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-        {chatHistory.map((m, idx) => {
-          let renderText = "";
-          if (m && m.parts && Array.isArray(m.parts) && m.parts[0]) {
-            renderText = m.parts[0].text || "";
-          } else if (m && m.parts && m.parts.text) {
-            renderText = m.parts.text;
-          } else {
-            renderText = typeof m.parts === 'string' ? m.parts : "Message loading...";
-          }
-
-          return (
-            <div key={idx} style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '8px', maxWidth: '80%', wordWrap: 'break-word', fontSize: '15px', lineHeight: '1.4', background: m.role === 'user' ? '#0070f3' : '#e5e5ea', color: m.role === 'user' ? 'white' : 'black', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              {renderText}
-            </div>
-          );
-        })}
+        {chatHistory.map((m, idx) => (
+          <div key={idx} style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '8px', maxWidth: '80%', wordWrap: 'break-word', fontSize: '15px', lineHeight: '1.4', background: m.role === 'user' ? '#0070f3' : '#e5e5ea', color: m.role === 'user' ? 'white' : 'black', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            {m.content}
+          </div>
+        ))}
         <div ref={chatEndRef} />
       </div>
 

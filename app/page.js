@@ -20,35 +20,26 @@ export default function Home() {
     const userText = input.trim();
     setInput('');
     
-    // Log user response into states
+    // Log user input to state instantly
     const updatedHistory = [...chatHistory, { role: "user", content: userText }];
     setChatHistory(updatedHistory);
     setLoading(true);
 
     try {
-      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Important: Speak only in normal, friendly conversational text. Never wrap responses in code blocks, JSON formatting tables, or system arrays.";
+      // 1. Build a clean text-based conversation string block
+      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Never wrap responses in code blocks, markdown blocks, or JSON variables.";
       
-      const formattedMessages = [
-        { role: "system", content: systemContext },
-        ...updatedHistory
-      ];
+      const conversationLog = updatedHistory.map(m => `${m.role === 'user' ? 'Customer' : 'Designer'}: ${m.content}`).join('\n');
+      const finalPromptBlock = `${systemContext}\n\nHere is the ongoing chat history so far:\n${conversationLog}\n\nDesigner response:`;
 
-      // Route through the stable qwen-coder engine cluster to prevent dropped connections
-      const response = await fetch('https://text.pollinations.ai/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          messages: formattedMessages,
-          model: "qwen-coder" // Stable, un-throttled routing line 
-        })
-      });
+      // 2. Fetch using a clean browser-safe GET request to bypass POST firewall resets completely
+      const cleanUrl = `https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=searchgpt&cache=false`;
+      const response = await fetch(cleanUrl);
       
-      if (!response.ok) throw new Error("API Connection Interrupted");
-      
-      // Extract the raw text stream response cleanly
+      if (!response.ok) throw new Error("API Route Blocked");
       const reply = await response.text();
 
-      // Check if the AI generated the layout completion token
+      // 3. Process the AI response string
       if (reply.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "assistant", content: "Perfect! Drawing your print image now... please wait a few seconds." }]);
         const promptText = reply.replace(/generate/i, '').trim();
@@ -62,7 +53,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection reset by server. Let's try sending that message again!" }]);
+      setChatHistory(prev => [...prev, { role: "assistant", content: "The server is a bit busy. Please try typing your last reply again!" }]);
     }
     setLoading(false);
   };

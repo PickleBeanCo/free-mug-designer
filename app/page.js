@@ -28,7 +28,7 @@ export default function Home() {
       const systemInstruction = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in plain friendly text conversation.";
 
       // Use the explicit fallback mechanism safely
-      const activeKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "AQ.Ab8RN6J3K6hNYXvlOpcpqHdhrL6OkHCSQJBJsnf9GumBq8YFeQ";
+      const activeKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || AQ.Ab8RN6J3K6hNYXvlOpcpqHdhrL6OkHCSQJBJsnf9GumBq8YFeQ;
 
       // Clean, simple conversion for the JSON payload
       const formattedContents = updatedHistory.map(item => {

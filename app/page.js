@@ -20,33 +20,49 @@ export default function Home() {
     const userText = input.trim();
     setInput('');
     
-    // Immediately log user input to screen state
     const updatedHistory = [...chatHistory, { role: "user", content: userText }];
     setChatHistory(updatedHistory);
     setLoading(true);
 
     try {
-      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles.";
+      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Important: Return only normal plain text conversation. Do not return JSON formatting, tool calls, or hidden code variables.";
       
-      // Correctly format history items for JSON delivery payloads
       const formattedMessages = [
         { role: "system", content: systemContext },
         ...updatedHistory
       ];
 
-      // Use a strict JSON POST payload to bypass URL length barriers entirely
-      const response = await fetch('https://text.pollinations.ai/', {
+      // Force the endpoint to return standard JSON so we can extract fields safely
+      const response = await fetch('https://pollinations.ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: formattedMessages,
-          model: "openai"
+          model: "openai",
+          jsonMode: true // Forces clean structured delivery
         })
       });
       
       if (!response.ok) throw new Error("API Route Blocked");
-      const reply = await response.text();
+      
+      const rawData = await response.text();
+      let reply = "";
 
+      try {
+        // Parse the text block to find the clean chat content
+        const parsed = JSON.parse(rawData);
+        if (parsed.choices && parsed.choices[0] && parsed.choices[0].message) {
+          reply = parsed.choices[0].message.content;
+        } else if (parsed.content) {
+          reply = parsed.content;
+        } else {
+          reply = rawData;
+        }
+      } catch (e) {
+        reply = rawData;
+      }
+
+      // Check for custom layout trigger word mechanisms
       if (reply.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "assistant", content: "Perfect! Drawing your print image now... please wait a few seconds." }]);
         const promptText = reply.replace(/generate/i, '').trim();

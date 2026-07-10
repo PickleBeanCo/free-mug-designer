@@ -20,12 +20,13 @@ export default function Home() {
     const userText = input.trim();
     setInput('');
     
+    // 1. Instantly log user message with the precise array format matching our mapping loop
     const updatedHistory = [...chatHistory, { role: "user", parts: [{ text: userText }] }];
     setChatHistory(updatedHistory);
     setLoading(true);
 
     try {
-      // Talk directly to our secure internal Next.js server route
+      // 2. Pass history array down to our internal Next.js secure server API
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,6 +38,7 @@ export default function Home() {
       if (data.error) throw new Error(data.error);
       const replyText = data.reply;
 
+      // 3. Handle image generation triggers
       if (replyText.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Perfect! Drawing your print image now... please wait a few seconds." }] }]);
         const promptText = replyText.replace(/generate/i, '').trim();
@@ -50,7 +52,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "The network refreshed. Please try re-typing your last message!" }] }]);
+      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "The connection refreshed. Please try re-typing your last message!" }] }]);
     }
     setLoading(false);
   };
@@ -63,11 +65,23 @@ export default function Home() {
       </div>
 
       <div style={{ width: '100%', maxWidth: '500px', height: '400px', background: 'white', borderRadius: '8px', border: '1px solid #ddd', overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', marginBottom: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-        {chatHistory.map((m, idx) => (
-          <div key={idx} style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '8px', maxWidth: '80%', wordWrap: 'break-word', fontSize: '15px', lineHeight: '1.4', background: m.role === 'user' ? '#0070f3' : '#e5e5ea', color: m.role === 'user' ? 'white' : 'black', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-            {m.parts && m.parts[0] ? m.parts[0].text : ''}
-          </div>
-        ))}
+        {chatHistory.map((m, idx) => {
+          // Robust text parsing fallback logic to prevent background crashing
+          let renderText = "";
+          if (m.parts && m.parts[0] && m.parts[0].text) {
+            renderText = m.parts[0].text;
+          } else if (m.parts && m.parts.text) {
+            renderText = m.parts.text;
+          } else {
+            renderText = typeof m.parts === 'string' ? m.parts : "Message error";
+          }
+
+          return (
+            <div key={idx} style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '8px', maxWidth: '80%', wordWrap: 'break-word', fontSize: '15px', lineHeight: '1.4', background: m.role === 'user' ? '#0070f3' : '#e5e5ea', color: m.role === 'user' ? 'white' : 'black', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              {renderText}
+            </div>
+          );
+        })}
         <div ref={chatEndRef} />
       </div>
 

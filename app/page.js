@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { UserButton } from '@clerk/nextjs';
 
-export default function Home() {
+export default function MugDesignerPage() {
   const chatEndRef = useRef(null);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function Home() {
 
   const triggerInputSubmit = () => {
     if (loading) return;
-    const textNode = document.getElementById('mug-designer-input-field');
+    const textNode = document.getElementById('clean-mug-input-box');
     const val = textNode ? textNode.value.trim() : '';
     if (!val) return;
     
@@ -26,7 +26,7 @@ export default function Home() {
 
   const executeChatWorkflow = async (userText) => {
     setInput('');
-    const inputField = document.getElementById('mug-designer-input-field');
+    const inputField = document.getElementById('clean-mug-input-box');
     if (inputField) inputField.value = '';
 
     const updatedHistory = [...chatHistory, { role: "user", content: userText }];
@@ -34,19 +34,16 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // 1. Build a clean conversational prompt log for the open-source endpoint
-      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Important: Speak only in normal, friendly conversational text. Do not return code structures or system blocks.";
+      const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in normal, friendly conversational text.";
       
       const conversationLog = updatedHistory.map(m => `${m.role === 'user' ? 'Customer' : 'Designer'}: ${m.content}`).join('\n');
       const finalPromptBlock = `${systemContext}\n\nHere is the ongoing chat history so far:\n${conversationLog}\n\nDesigner response:`;
 
-      // 2. Fetch using a completely free, tokenless router to bypass Google domain typos entirely
       const response = await fetch(`https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=mistral`);
       
-      if (!response.ok) throw new Error("API Connection Interrupted");
+      if (!response.ok) throw new Error("Network connection dropped");
       const reply = await response.text();
 
-      // 3. Process the AI reply and handle image generations
       if (reply.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "assistant", content: "Perfect! Drawing your print image now... please wait a few seconds." }]);
         const promptText = reply.replace(/generate/i, '').trim();
@@ -60,7 +57,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection lagged slightly. Please try typing your last message response again!" }]);
+      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection timed out. Let's send that message again!" }]);
     }
     setLoading(false);
   };
@@ -83,7 +80,7 @@ export default function Home() {
 
       <div style={{ display: 'flex', width: '100%', maxWidth: '500px' }}>
         <input 
-          id="mug-designer-input-field"
+          id="clean-mug-input-box"
           style={{ flex: 1, padding: '12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '15px' }} 
           type="text" 
           defaultValue=""

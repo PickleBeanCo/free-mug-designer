@@ -18,17 +18,17 @@
         #result-container { display: none; flex-direction: column; align-items: center; margin-top: 20px; width: 100%; }
         #result-image { width: 100%; border-radius: 8px; border: 2px solid #ddd; }
         #download-btn { margin-top: 10px; padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; text-decoration: none; }
-        .btn-auth { padding: 12px 24px; background: #0070f3; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; font-size: 14px; }
         .btn-logout { margin-top: 20px; background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; }
+        #clerk-login-box { margin-top: 20px; min-height: 400px; width: 100%; display: flex; justify-content: center; }
     </style>
 </head>
 <body>
 
-    <!-- 1. AUTHENTICATION LOCK SCREEN -->
+    <!-- 1. AUTHENTICATION LOCK SCREEN (Clerk Form Draws Right Inside This) -->
     <div id="auth-container">
         <h2>🔒 Private Access Required</h2>
-        <p style="color: #666; text-align: center; max-width: 300px; margin: 10px 0;">Please sign in to proceed. New registrations will automatically enter the manual approval waitlist.</p>
-        <button class="btn-auth" onclick="redirectToLogin()">Sign In / Register</button>
+        <p style="color: #666; text-align: center; max-width: 340px; margin: 10px 0;">New registrations will automatically enter your manual approval waitlist.</p>
+        <div id="clerk-login-box"></div>
     </div>
 
     <!-- 2. PROTECTED MUG BOT CONTAINER -->
@@ -48,7 +48,7 @@
         <button class="btn-logout" onclick="handleSignOut()">Sign Out</button>
     </div>
 
-    <!-- Inject Clerk Core Web SDK Engine -->
+    <!-- Inject Clerk Core Web SDK Engine with your unique key embedded -->
     <script async crossorigin="anonymous" data-clerk-publishable-key="pk_test_Zm9uZC1sYWNld2luZy01NS5jbGVyay5hY2NvdW50cy5kZXYk" src="https://clerk.com" type="text/javascript"></script>
 
     <script>
@@ -61,16 +61,12 @@
                 document.getElementById('auth-container').style.display = 'none';
                 document.getElementById('app-container').style.display = 'flex';
             } else {
-                // Public state: keep lock view active
+                // Public state: Force Clerk to build the login form directly on the screen
                 document.getElementById('auth-container').style.display = 'flex';
                 document.getElementById('app-container').style.display = 'none';
+                Clerk.mountSignIn(document.getElementById('clerk-login-box'));
             }
         });
-
-        function redirectToLogin() {
-            // Bypasses local wrapper rendering and fires directly into Clerk's secure domain portal
-            Clerk.redirectToSignIn();
-        }
 
         async function handleSignOut() {
             await Clerk.signOut();

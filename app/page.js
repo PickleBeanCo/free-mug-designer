@@ -21,29 +21,38 @@ export default function Home() {
     const userText = input.trim();
     setInput('');
     
-    // Push user's input directly into the running layout state
+    // Add user message to history
     const updatedHistory = [...chatHistory, { role: "user", parts: [{ text: userText }] }];
     setChatHistory(updatedHistory);
     setLoading(true);
 
     try {
-      // 1. Initialize Google Gemini using your client key safely
-      const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
+      // 1. Correct Initialization for Google Gen AI SDK
+      const ai = new GoogleGenAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
       const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-      // 2. Format custom instructions directly to anchor the bot's creative goal
       const systemInstruction = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in plain friendly text conversation.";
 
-      // 3. Initiate a direct, live chat session through Google's cloud server architecture
+      // 2. Prepare past history formatting for Gemini (excluding the newest user message)
+      const pastHistory = chatHistory.map(item => ({
+        role: item.role,
+        parts: item.parts
+      }));
+
+      // 3. Start a clean chat session on Google's network
       const chat = model.startChat({
-        history: chatHistory,
-        systemInstruction: systemInstruction
+        history: pastHistory,
+        generationConfig: {
+          temperature: 0.7,
+        }
       });
 
-      const responseResult = await chat.sendMessage(userText);
+      // Inject system context into the message stream safely
+      const finalPromptText = `[System Instructions: ${systemInstruction}]\n\nUser Message: ${userText}`;
+      const responseResult = await chat.sendMessage(finalPromptText);
       const replyText = responseResult.response.text();
 
-      // 4. Handle text analysis and trigger image render rules
+      // 4. Handle text analysis and trigger image generation
       if (replyText.toUpperCase().includes('GENERATE')) {
         setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Perfect! Drawing your print image now... please wait a few seconds." }] }]);
         const promptText = replyText.replace(/generate/i, '').trim();
@@ -56,8 +65,8 @@ export default function Home() {
         setChatHistory(prev => [...prev, { role: "model", parts: [{ text: replyText.trim() }] }]);
       }
     } catch (error) {
-      console.error(error);
-      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Google server queue is re-routing. Let's try sending that message line again!" }] }]);
+      console.error("Gemini SDK Error details:", error);
+      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "Google connection refreshed. Please try typing your last message response again!" }] }]);
     }
     setLoading(false);
   };
@@ -72,7 +81,7 @@ export default function Home() {
       <div style={{ width: '100%', maxWidth: '500px', height: '400px', background: 'white', borderRadius: '8px', border: '1px solid #ddd', overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', marginBottom: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
         {chatHistory.map((m, idx) => (
           <div key={idx} style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '8px', maxWidth: '80%', wordWrap: 'break-word', fontSize: '15px', lineHeight: '1.4', background: m.role === 'user' ? '#0070f3' : '#e5e5ea', color: m.role === 'user' ? 'white' : 'black', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-            {m.parts[0].text}
+            {m.parts && m.parts[0] ? m.parts[0].text : ''}
           </div>
         ))}
         <div ref={chatEndRef} />

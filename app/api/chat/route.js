@@ -5,16 +5,28 @@ export async function POST(req) {
   try {
     const { history, message } = await req.json();
 
-    // Explicitly initialize the SDK with your private Vercel environment variable
+    // Initialize the official Google SDK
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     const systemInstruction = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in plain friendly text conversation.";
 
-    // Map conversation log into the precise roles required by the modern SDK
-    const formattedContents = history.map(item => ({
-      role: item.role === 'model' ? 'model' : 'user',
-      parts: [{ text: item.parts[0].text }]
-    }));
+    // CRITICAL FIX: Safe data mapping that extracts text correctly from arrays
+    const formattedContents = history.map(item => {
+      let textContent = "";
+      
+      if (item.parts && Array.isArray(item.parts) && item.parts[0]) {
+        textContent = item.parts[0].text || "";
+      } else if (item.parts && item.parts.text) {
+        textContent = item.parts.text;
+      } else {
+        textContent = typeof item.parts === 'string' ? item.parts : "";
+      }
+
+      return {
+        role: item.role === 'model' ? 'model' : 'user',
+        parts: [{ text: textContent }]
+      };
+    });
 
     // Append the new incoming user text payload
     formattedContents.push({
@@ -22,7 +34,7 @@ export async function POST(req) {
       parts: [{ text: message }]
     });
 
-    // Call the content generation model via the unified engine mapping rules
+    // Call the content generation model
     const responseResult = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: formattedContents,

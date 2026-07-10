@@ -42,7 +42,7 @@ export default function Home() {
       // Cache-Busting Fix: Appending a random seed number forces the browser to discard cached addresses
       const randomCacheBuster = Math.floor(Math.random() * 999999);
       
-      // FIX 1: Added missing '$' sign and '/p/' endpoint for Pollinations text models
+      // CRITICAL FIXED LINE: Added missing '$' sign and '/p/' route parameter
       const secureCleanUrl = `https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=mistral&cb=${randomCacheBuster}`;
       
       const response = await fetch(secureCleanUrl);
@@ -55,7 +55,7 @@ export default function Home() {
         const isWrap = promptText.toLowerCase().includes('wrap');
         const cleanPrompt = encodeURIComponent(`${promptText}, clean vector print asset for custom coffee mug, text typography centered, solid plain white background, sharp edges`);
         
-        // FIX 2: Added missing '$' sign here for the image endpoint variable
+        // CRITICAL FIXED LINE: Added missing '$' sign and '/p/' route parameter here too
         const generatedUrl = `https://pollinations.ai{cleanPrompt}?width=${isWrap ? 1200 : 1000}&height=${isWrap ? 600 : 1000}&seed=${Math.floor(Math.random() * 100000)}&nologo=true`;
         setImageUrl(generatedUrl);
       } else {

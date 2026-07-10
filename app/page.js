@@ -25,20 +25,20 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      // Direct relative fetch addressing path fix
+      const response = await fetch('./api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ history: chatHistory, message: userText })
       });
 
-      const data = await response.json();
-      
-      if (data.error) {
-        setChatHistory(prev => [...prev, { role: "model", parts: [{ text: `Error: ${data.error}` }] }]);
-        setLoading(false);
-        return;
+      // Catch 404/500 errors before the JSON parser triggers a crash
+      if (!response.ok) {
+        const rawErrText = await response.text();
+        throw new Error(`Server returned code ${response.status}. Folder structure may be misaligned.`);
       }
-      
+
+      const data = await response.json();
       const replyText = data.reply || "";
 
       if (replyText.toUpperCase().includes('GENERATE')) {
@@ -54,7 +54,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: "The connection dropped. Please try re-typing your message response." }] }]);
+      setChatHistory(prev => [...prev, { role: "model", parts: [{ text: `System Notice: ${error.message}` }] }]);
     }
     setLoading(false);
   };
@@ -68,15 +68,7 @@ export default function Home() {
 
       <div style={{ width: '100%', maxWidth: '500px', height: '400px', background: 'white', borderRadius: '8px', border: '1px solid #ddd', overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', marginBottom: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
         {chatHistory.map((m, idx) => {
-          let renderText = "";
-          if (m.parts && Array.isArray(m.parts) && m.parts[0]) {
-            renderText = m.parts[0].text || "";
-          } else if (m.parts && m.parts.text) {
-            renderText = m.parts.text;
-          } else {
-            renderText = typeof m.parts === 'string' ? m.parts : "Message error";
-          }
-
+          let renderText = m.parts?.[0]?.text || m.parts?.text || (typeof m.parts === 'string' ? m.parts : "Message error");
           return (
             <div key={idx} style={{ margin: '8px 0', padding: '10px 14px', borderRadius: '8px', maxWidth: '80%', wordWrap: 'break-word', fontSize: '15px', lineHeight: '1.4', background: m.role === 'user' ? '#0070f3' : '#e5e5ea', color: m.role === 'user' ? 'white' : 'black', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
               {renderText}

@@ -17,7 +17,7 @@ export default function Home() {
 
   const triggerInputSubmit = () => {
     if (loading) return;
-    const textNode = document.getElementById('final-secure-mug-input-box');
+    const textNode = document.getElementById('final-mug-input-box');
     const val = textNode ? textNode.value.trim() : '';
     if (!val) return;
     
@@ -26,7 +26,7 @@ export default function Home() {
 
   const executeChatWorkflow = async (userText) => {
     setInput('');
-    const inputField = document.getElementById('final-secure-mug-input-box');
+    const inputField = document.getElementById('final-mug-input-box');
     if (inputField) inputField.value = '';
 
     const updatedHistory = [...chatHistory, { role: "user", content: userText }];
@@ -37,10 +37,15 @@ export default function Home() {
       const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in normal, friendly conversational text.";
       
       const conversationLog = updatedHistory.map(m => `${m.role === 'user' ? 'Customer' : 'Designer'}: ${m.content}`).join('\n');
-      const finalPromptBlock = systemContext + "\n\nChat history:\n" + conversationLog + "\n\nDesigner response:";
+      const finalPromptBlock = `${systemContext}\n\nHere is the ongoing chat history so far:\n${conversationLog}\n\nDesigner response:`;
 
-      // Safe, uncacheable text stream fetch loader
-      const response = await fetch("https://pollinations.ai" + encodeURIComponent(finalPromptBlock) + "?model=mistral");
+      // Cache-Busting Fix: Appending a random seed number forces the browser to discard cached addresses
+      const randomCacheBuster = Math.floor(Math.random() * 999999);
+      
+      // FIX 1: Added missing '$' sign and '/p/' endpoint for Pollinations text models
+      const secureCleanUrl = `https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=mistral&cb=${randomCacheBuster}`;
+      
+      const response = await fetch(secureCleanUrl);
       if (!response.ok) throw new Error("Connection Interrupted");
       const reply = await response.text();
 
@@ -48,16 +53,17 @@ export default function Home() {
         setChatHistory(prev => [...prev, { role: "assistant", content: "Perfect! Drawing your print image now... please wait a few seconds." }]);
         const promptText = reply.replace(/generate/i, '').trim();
         const isWrap = promptText.toLowerCase().includes('wrap');
-        const cleanPrompt = encodeURIComponent(promptText + ", clean vector print asset for custom coffee mug, text typography centered, solid plain white background, sharp edges");
+        const cleanPrompt = encodeURIComponent(`${promptText}, clean vector print asset for custom coffee mug, text typography centered, solid plain white background, sharp edges`);
         
-        const generatedUrl = "https://pollinations.ai" + cleanPrompt + "?width=" + (isWrap ? 1200 : 1000) + "&height=" + (isWrap ? 600 : 1000) + "&seed=" + Math.floor(Math.random() * 100000) + "&nologo=true";
+        // FIX 2: Added missing '$' sign here for the image endpoint variable
+        const generatedUrl = `https://pollinations.ai{cleanPrompt}?width=${isWrap ? 1200 : 1000}&height=${isWrap ? 600 : 1000}&seed=${Math.floor(Math.random() * 100000)}&nologo=true`;
         setImageUrl(generatedUrl);
       } else {
         setChatHistory(prev => [...prev, { role: "assistant", content: reply.trim() }]);
       }
     } catch (error) {
       console.error(error);
-      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection lagged slightly. Please try typing your last message response again!" }]);
+      setChatHistory(prev => [...prev, { role: "assistant", content: "Connection lagged. Please try typing your last message response again!" }]);
     }
     setLoading(false);
   };
@@ -80,7 +86,7 @@ export default function Home() {
 
       <div style={{ display: 'flex', width: '100%', maxWidth: '500px' }}>
         <input 
-          id="final-secure-mug-input-box"
+          id="final-mug-input-box"
           style={{ flex: 1, padding: '12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '15px' }} 
           type="text" 
           defaultValue=""

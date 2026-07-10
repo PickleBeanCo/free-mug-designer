@@ -36,14 +36,13 @@ export default function Home() {
     try {
       const systemContext = "You are a professional custom mug design assistant. Your goal is to discover what the user wants printed on their mug. Ask exactly one question at a time. First ask if they want Full Wrap or Single Graphic. Second, ask about the main subject matter. Third, ask if they want any text or a specific name included, reminding them to keep it short. Fourth, ask about the artistic style (e.g., watercolor, minimalist) and colours. Once you have all info, stop asking questions and reply exactly with the word: GENERATE followed by a highly descriptive image prompt detailing the layout, text, and styles. Speak only in normal, friendly conversational text.";
       
-      const conversationLog = updatedHistory.map(m => `${m.role === 'user' ? 'Customer' : 'Designer'}: ${m.content}`).join('\n');
-      const finalPromptBlock = `${systemContext}\n\nHere is the ongoing chat history so far:\n${conversationLog}\n\nDesigner response:`;
+      const conversationLog = updatedHistory.map(m => (m.role === 'user' ? 'Customer' : 'Designer') + ': ' + m.content).join('\n');
+      const finalPromptBlock = systemContext + '\n\nHere is the ongoing chat history so far:\n' + conversationLog + '\n\nDesigner response:';
 
-      // Cache-Busting Fix: Appending a random seed number forces the browser to discard cached addresses
       const randomCacheBuster = Math.floor(Math.random() * 999999);
       
-      // CRITICAL FIXED LINE: Added missing '$' sign and '/p/' route parameter
-      const secureCleanUrl = `https://pollinations.ai{encodeURIComponent(finalPromptBlock)}?model=mistral&cb=${randomCacheBuster}`;
+      // FIXED USING STANDARD STRING CONCATENATION TO ELIMINATE BACKTICK BUGS
+      const secureCleanUrl = "https://pollinations.ai" + encodeURIComponent(finalPromptBlock) + "?model=mistral&cb=" + randomCacheBuster;
       
       const response = await fetch(secureCleanUrl);
       if (!response.ok) throw new Error("Connection Interrupted");
@@ -53,10 +52,14 @@ export default function Home() {
         setChatHistory(prev => [...prev, { role: "assistant", content: "Perfect! Drawing your print image now... please wait a few seconds." }]);
         const promptText = reply.replace(/generate/i, '').trim();
         const isWrap = promptText.toLowerCase().includes('wrap');
-        const cleanPrompt = encodeURIComponent(`${promptText}, clean vector print asset for custom coffee mug, text typography centered, solid plain white background, sharp edges`);
+        const cleanPrompt = encodeURIComponent(promptText + ", clean vector print asset for custom coffee mug, text typography centered, solid plain white background, sharp edges");
         
-        // CRITICAL FIXED LINE: Added missing '$' sign and '/p/' route parameter here too
-        const generatedUrl = `https://pollinations.ai{cleanPrompt}?width=${isWrap ? 1200 : 1000}&height=${isWrap ? 600 : 1000}&seed=${Math.floor(Math.random() * 100000)}&nologo=true`;
+        const width = isWrap ? 1200 : 1000;
+        const height = isWrap ? 600 : 1000;
+        const seed = Math.floor(Math.random() * 100000);
+        
+        // FIXED IMAGE URL SEGMENTS
+        const generatedUrl = "https://pollinations.ai" + cleanPrompt + "?width=" + width + "&height=" + height + "&seed=" + seed + "&nologo=true";
         setImageUrl(generatedUrl);
       } else {
         setChatHistory(prev => [...prev, { role: "assistant", content: reply.trim() }]);

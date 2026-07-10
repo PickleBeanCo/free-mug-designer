@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Private AI Mug Designer</title>
+    <!-- 1. INJECT CLERK NETWORK LAYER IN TOP HEADER (Forced Domain Priority Setup) -->
+    <script 
+        async 
+        crossorigin="anonymous" 
+        data-clerk-publishable-key="pk_test_Zm9uZC1sYWNld2luZy01NS5jbGVyay5hY2NvdW50cy5kZXYk" 
+        src="https://cdn.clerk.io/clerk.js" 
+        type="text/javascript">
+    </script>
     <style>
         body { font-family: sans-serif; background: #f4f4f9; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         #auth-container { display: none; flex-direction: column; align-items: center; margin-top: 50px; background: white; padding: 30px; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -25,17 +33,17 @@
 </head>
 <body>
 
-    <!-- 0. BOOTSTRAP INITIAL SYSTEM LOADING TEXT -->
-    <div id="loading-screen">Waking up secure network servers...</div>
+    <!-- 2. SYSTEM INGESTION HUD -->
+    <div id="loading-screen">Verifying security certificates...</div>
 
-    <!-- 1. AUTHENTICATION LOCK SCREEN -->
+    <!-- 3. PRIVACY ACCESS POINT -->
     <div id="auth-container">
         <h2>🔒 Private Access Required</h2>
-        <p style="color: #666; text-align: center; max-width: 340px; margin: 10px 0;">New registrations will automatically enter your manual approval waitlist.</p>
+        <p style="color: #666; text-align: center; max-width: 340px; margin: 10px 0;">New accounts will be held securely in your admin waitlist panel.</p>
         <div id="clerk-login-box"></div>
     </div>
 
-    <!-- 2. PROTECTED MUG BOT CONTAINER -->
+    <!-- 4. PROTECTED DESIGN BOT INTERFACE -->
     <div id="app-container">
         <h2>☕ AI Mug Design Assistant</h2>
         <div id="chat-window">
@@ -53,33 +61,32 @@
     </div>
 
     <script>
-        // Official 2026 Native Javascript Initialization Pattern for Single File Environments
-        const clerkPublishableKey = "pk_test_Zm9uZC1sYWNld2luZy01NS5jbGVyay5hY2NvdW50cy5kZXYk";
+        // Check for Clerk core readiness at a set safe polling speed interval
+        const checkClerkInterval = setInterval(async () => {
+            if (window.Clerk) {
+                // Clear the loop countdown once window maps the module object successfully
+                clearInterval(checkClerkInterval);
+                
+                try {
+                    // Initialize the Clerk session handshake natively
+                    await window.Clerk.load();
+                    
+                    document.getElementById('loading-screen').style.display = 'none';
 
-        // Dynamically build script element inside DOM map to prevent asynchronous blockades
-        const script = document.createElement('script');
-        script.setAttribute('data-clerk-publishable-key', clerkPublishableKey);
-        script.src = 'https://clerk.com';
-        script.crossOrigin = 'anonymous';
-        
-        script.addEventListener('load', async () => {
-            // Once the external script finishes streaming, load Clerk engine explicitly
-            await window.Clerk.load();
-            
-            // Remove initial boot text
-            document.getElementById('loading-screen').style.display = 'none';
-
-            if (window.Clerk.user) {
-                // User is authenticated
-                document.getElementById('app-container').style.display = 'flex';
-            } else {
-                // Public user: Draw the login form natively on the blank card space
-                document.getElementById('auth-container').style.display = 'flex';
-                window.Clerk.mountSignIn(document.getElementById('clerk-login-box'));
+                    if (window.Clerk.user) {
+                        // Safe login status confirmed
+                        document.getElementById('app-container').style.display = 'flex';
+                    } else {
+                        // Unauthenticated view state: Draw login cards directly onto form container
+                        document.getElementById('auth-container').style.display = 'flex';
+                        window.Clerk.mountSignIn(document.getElementById('clerk-login-box'));
+                    }
+                } catch (err) {
+                    document.getElementById('loading-screen').innerText = "Security Handshake Failed. Reload the page.";
+                    console.error("Clerk load runtime catch exception:", err);
+                }
             }
-        });
-
-        document.body.appendChild(script);
+        }, 100); // Polls every 100ms until library streaming completes
 
         async function handleSignOut() {
             await window.Clerk.signOut();
